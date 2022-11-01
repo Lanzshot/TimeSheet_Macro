@@ -1,0 +1,233 @@
+Public TerminateMacro  As String
+Sub OTUserForm_click()
+
+'###Calcualte user OT A and B hrs.###
+
+'Dim filex, name As String
+Dim lastrow, chkrow As Integer
+
+Call CleanUp
+Call DateList
+
+'####################################
+'Copy Dates, ETD and ETA from Sheet Timesheet over
+
+Sheets("Timesheet").Select
+
+If (Cells(9, 4) <> vbNullString) And (Cells(9, 5) <> vbNullString) And (Cells(9, 5) > Cells(9, 4)) Then
+
+    Range(Cells(9, 1), Cells(52, 1)).Select  'copy and paste Date
+    Selection.Copy
+    Sheets("Sheet1").Select
+    Range("A3").Select
+    ActiveSheet.Paste
+
+Sheets("Timesheet").Select
+
+    Range(Cells(9, 4), Cells(52, 5)).Select  'copy and paste time
+    Selection.Copy
+    Sheets("Sheet1").Select
+    Range("C3").Select
+    ActiveSheet.Paste
+    
+Else
+    MsgBox "Please key in the require ETD and ETA in the correct order!", vbExclamation
+Exit Sub
+End If
+
+
+
+'######################################################################################
+'#################################### OT Calculation START #############################
+Sheet1.Select
+   
+    'check for user that form is filled.
+    If Range("C3").Value <> vbNullString Then
+    
+    lastrow = xlLastRow("") 'get the last row number for sheet 1
+
+    For chkrow = 3 To lastrow   'loop all rows for OT timings
+    'check if start time tally with OT A timing
+  
+    'check start time is within OT A
+    starttime = Cells(chkrow, 3)
+    endtime = Cells(chkrow, 4)
+            
+    
+    
+'##################### OVERSEA Calculation ###############################################
+    
+    SheetRow = chkrow + 6
+    
+    'if that day claim full Oversea allowance (300 /###) then All OTs are "0".
+    If Sheets("Timesheet").Cells(SheetRow, 10) Like "###" Then 'if endtime is before OT start time, then ignore this if loop.
+
+        MyRanges = "I" & chkrow & ":" & "K" & chkrow
+        Range(MyRanges) = "0"
+        GoTo OverseaStop
+    End If
+    
+'##################### Oversea Cal <<End>> ###################################################
+
+
+    
+    'Check to proceed to calculate normal weekday OT or Weekend OT.
+    Sheet1.Select
+    WkDays = Weekday(Cells(chkrow, 1), 2)
+    
+'###################### OT B <<FOR WEEKEND>> ##############################################
+    If WkDays > 5 Then
+
+        ' For Weekend jobs, all OT based on 1.5 OT B.
+        Cells(chkrow, 10) = (endtime - starttime) * 24
+        Cells(chkrow, 9) = "0"
+        Cells(chkrow, 11) = "0"
+
+        GoTo NotWeekdays
+    End If
+
+'###################### OT A <<FOR WEEKDAYS>> ##############################################
+
+            '######Check for OT A (AM)(6.00 to 8.30) time ########
+            If endtime <= Sheets("others").Cells(2, 1) Or starttime >= Sheets("others").Cells(3, 1) Then  'if endtime is before OT start time, then ignore this if loop.
+                GoTo StopChk1
+            
+            'if ST >= 6.00AM and ET <= 8.30AM, eg 7 to 8am, 8-7 =1hr
+            ElseIf (starttime >= Sheets("others").Cells(2, 1)) And (endtime <= Sheets("others").Cells(3, 1)) Then
+                Cells(chkrow, 5) = (endtime - starttime) * 24 'OT A (AM)
+            
+            'if ST < 6.00AM and ET <= 8.30AM, eg 4 to 8am, 8-6 =2hr
+            ElseIf (starttime < Sheets("others").Cells(2, 1)) And (endtime <= Sheets("others").Cells(3, 1)) Then
+                Cells(chkrow, 5) = (endtime - Sheets("others").Cells(2, 1)) * 24  'OT A (AM)
+                
+            'if ST >= 6.00AM and ET > 8.30AM, eg 6.30 to 9.30am, 8.30-6.30 =2hr
+            ElseIf (starttime > Sheets("others").Cells(2, 1)) And (endtime > Sheets("others").Cells(3, 1)) And (starttime < Sheets("others").Cells(3, 1)) Then
+                Cells(chkrow, 5) = (Sheets("others").Cells(3, 1) - starttime) * 24  'OT A (AM)
+                        
+            'if ST <= 6.00AM and ET >= 8.30AM, eg 4.00 to 1000am, 8.30-6.00 =2.5hr
+            ElseIf (starttime <= Sheets("others").Cells(2, 1)) And (endtime >= Sheets("others").Cells(3, 1)) Then
+                Cells(chkrow, 5) = "2.5"  'OT A (AM)
+            
+            Else
+StopChk1:
+                Cells(chkrow, 5) = "0"
+            End If
+            
+            
+            '######Check for OT A (PM)(18.00 to 20.00) time ###########
+            If endtime <= Sheets("others").Cells(4, 1) Or starttime >= Sheets("others").Cells(5, 1) Then  'if endtime is before OT start time, then ignore this if loop.
+                GoTo StopChk2
+            
+            'if ST >= 18.00PM and ET <= 20.00PM, eg 7pm to 8pm, 20-19 =1hr
+            ElseIf (starttime >= Sheets("others").Cells(4, 1)) And (endtime <= Sheets("others").Cells(5, 1)) Then
+                Cells(chkrow, 6) = (endtime - starttime) * 24 'OT A (AM), Rare for ppl to work only 2 hrs...
+            
+            'if ST < 18.00PM and ET <= 20.00PM, eg 4pm to 7pm, 19-18 =1hr
+            ElseIf (starttime < Sheets("others").Cells(4, 1)) And (endtime <= Sheets("others").Cells(5, 1)) Then
+                Cells(chkrow, 6) = (endtime - Sheets("others").Cells(4, 1)) * 24  'OT A (AM)
+                
+            'if ST >= 18.00PM and ET > 20.00PM, eg 17.30 to 21.30am, 8.30-6.30 =2hr
+            ElseIf (starttime > Sheets("others").Cells(4, 1)) And (endtime > Sheets("others").Cells(5, 1)) Then
+                Cells(chkrow, 6) = (Sheets("others").Cells(5, 1) - starttime) * 24  'OT A (AM)
+               
+            'if ST <= 18.00PM and ET >= 20.00PM, eg 1800 to 2000pm, 8.90-6.00 =2hr
+            ElseIf (starttime <= Sheets("others").Cells(4, 1)) And (endtime >= Sheets("others").Cells(5, 1)) Then
+                Cells(chkrow, 6) = "2"  'OT A (AM)
+                
+            Else
+StopChk2:
+                Cells(chkrow, 6) = "0"
+            End If
+
+
+'###################### OT B ##############################################
+
+            '######Check for OT B (AM)(00.00 to 6.00) time ########
+            'if ST >= 00.00AM and ET <= 6.00AM, eg 0 to 6am, 6-0 =6hr
+            If (starttime >= Sheets("others").Cells(8, 1)) And (endtime <= Sheets("others").Cells(9, 1)) Then
+                Cells(chkrow, 7) = (endtime - starttime) * 24 'OT B (AM)
+            
+            'if ST < 6.00AM and ET <= 8.30AM, eg 4 to 8am, 8-6 =2hr
+            ElseIf (starttime >= Sheets("others").Cells(8, 1) And starttime < Sheets("others").Cells(9, 1)) And (endtime > Sheets("others").Cells(9, 1)) Then
+                Cells(chkrow, 7) = (Sheets("others").Cells(9, 1) - starttime) * 24 'OT B (AM)
+                
+            Else:
+                Cells(chkrow, 7) = "0"
+            End If
+            
+
+            '######Check for OT B (PM)(20.00 to 23.59) time ########
+            'if ST >= 20.00PM and ET <= 23.59PM, eg 9 to 12am, 12-9 =3hr
+            If (starttime >= Sheets("others").Cells(10, 1)) And (endtime <= Sheets("others").Cells(11, 1)) Then
+                Cells(chkrow, 8) = (endtime - starttime) * 24 'OT B (AM), round up due to 2359 timing
+                
+            'if ST < 8.00PM and ET <= 2359PM and > 8PM, eg 1500 to 2359PM, 12 - 8 = 4hr
+            ElseIf (endtime <= Sheets("others").Cells(11, 1) And endtime > Sheets("others").Cells(10, 1)) And (starttime < Sheets("others").Cells(10, 1)) Then
+                Cells(chkrow, 8) = (endtime - Sheets("others").Cells(10, 1)) * 24 'OT B (AM)
+
+            Else:
+                Cells(chkrow, 8) = "0"
+            End If
+            
+            If endtime = Sheets("others").Cells(11, 1) Then 'if endtime is 2359, roundup for OT B PM and Normal hrs calculations.
+                Cells(chkrow, 8) = Application.RoundUp(Cells(chkrow, 8), 1)     'Rdup to 1 dec place for OTB
+                endtime = Application.RoundUp(endtime, 1)
+            End If
+
+
+'###################### OT A Total <<FOR WEEKDAY>> ##############################################
+            Cells(chkrow, 9) = Cells(chkrow, 5) + Cells(chkrow, 6)
+
+'###################### OT B Total <<FOR WEEKDAY>> ##############################################
+            Cells(chkrow, 10) = Cells(chkrow, 7) + Cells(chkrow, 8)
+            
+'###################### Normal Hrs ##############################################
+            Cells(chkrow, 11) = ((endtime - starttime) * 24) - Cells(chkrow, 9) - Cells(chkrow, 10)
+            Cells(chkrow, 11) = Round(Cells(chkrow, 11), 2) 'Bug fix for -0.0000000000001xxx probs
+
+NotWeekdays:
+OverseaStop:
+
+    Next chkrow
+    
+'#################################### OT Calculation <<END>> #############################
+'######################################################################################
+
+
+
+
+'####################################
+'Copy OT and Normal timing back to Sheet Timesheet
+
+        Sheet1.Select
+        Range(Cells(3, 9), Cells(lastrow, 10)).Select  'copy and paste Date
+        Call Borders
+        Selection.Copy
+        Sheets("Timesheet").Select
+        Range("G9").Select
+        ActiveSheet.Paste
+    
+        Sheets("Sheet1").Select
+    
+        Range(Cells(3, 11), Cells(lastrow, 11)).Select  'copy and paste Date
+        Call Borders
+        Selection.Copy
+        Sheets("Timesheet").Select
+        Range("F9").Select
+        ActiveSheet.Paste
+    
+        Call Checker
+        If TerminateMacro = "Yes" Then
+            Exit Sub
+        End If
+        
+        Call RoundUp    'Rd Up to X.X dec place for OT calculation at Timesheet
+        MsgBox "Done! Please kindly check before submission.", vbInformation
+        
+    Else
+        MsgBox "Please ensure that you have key in the require timings!", vbExclamation
+    End If
+    
+
+    
+End Sub
