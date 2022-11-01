@@ -1,0 +1,196 @@
+
+Function xlLastRow(Optional WorksheetName As String) As Long
+     
+    'Check for optional worksheetname else use activesheet
+    If WorksheetName = vbNullString Then
+        WorksheetName = ActiveSheet.name
+    End If
+    
+     '    find the last populated row in a worksheet
+    With Worksheets(WorksheetName)
+        xlLastRow = .Cells.Find("*", .Cells(1), xlFormulas, _
+        xlWhole, xlByRows, xlPrevious).Row
+    End With
+     
+End Function
+
+Function xlLastCol(Optional WorksheetName As String) As Long
+     
+    'finds the last populated col in a worksheet
+    If WorksheetName = vbNullString Then WorksheetName = ActiveSheet.name
+    With Worksheets(WorksheetName)
+        On Error Resume Next
+        xlLastCol = .Cells.Find("*", .Cells(1), xlFormulas, _
+        xlWhole, xlByColumns, xlPrevious).Column
+        If Err <> 0 Then xlLastCol = 0
+    End With
+     
+End Function
+'clear data for OT calculation at sheet1
+Function CleanUp()
+
+Sheet1.Select
+lastrow = xlLastRow("")
+
+If lastrow >= 3 Then
+    Range("A3:L" & lastrow).Select
+    Selection.ClearContents
+End If
+
+End Function
+
+'Create dates for 2 months so user can select thru drop down box.
+Function DateList()
+
+Sheets("Timesheet").Select
+
+If Cells(9, 1) <> vbNullString Then
+    Cells(9, 1).Select
+    Selection.Copy
+    Sheets("others").Select
+    Range("D1").Select
+    ActiveSheet.Paste
+    
+    Range("D1").Select
+    Selection.AutoFill Destination:=Range("D1:D62"), Type:=xlFillDefault    'auto fill 2 mnths base on user key 1st date.
+    Range("D1:D62").Select
+End If
+
+End Function
+
+'added the function for self checking after completing macro.
+Function Checker()
+
+Sheets("Timesheet").Select
+TerminateMacro = ""
+
+'Check Name and month 1st
+If (Cells(4, 2) = vbNullString) And (Cells(4, 3) = vbNullString) And ((Cells(4, 9) = vbNullString) And (Cells(4, 10) = vbNullString) And (Cells(4, 11) = vbNullString)) Then
+    MsgBox "Please key in your name and respective month and re-run the macro again.", vbExclamation
+    TerminateMacro = "Yes"
+    Exit Function
+
+ElseIf (Cells(4, 2) = vbNullString) And (Cells(4, 3) = vbNullString) Then       'Check Name 2nd
+    MsgBox "Please key in your name and re-run the macro again.", vbExclamation
+    TerminateMacro = "Yes"
+    Exit Function
+
+ElseIf (Cells(4, 9) = vbNullString) And (Cells(4, 10) = vbNullString) And (Cells(4, 11) = vbNullString) Then    'Check month last
+    MsgBox "Please key in the respective month and re-run the macro again.", vbExclamation
+    TerminateMacro = "Yes"
+    Exit Function
+
+End If
+
+'Check all 3 OT hrs for -ve hrs and highlight to red if any.
+
+lastrow = xlLastRow("")
+NegHrs = ""
+
+For NegRow = 9 To lastrow
+    
+    If Cells(NegRow, 6).Value < 0 Then  'Normal hrs showing -Ve
+        Cells(NegRow, 6).Font.ColorIndex = 3
+        NegHrs = "Red"
+    ElseIf Cells(NegRow, 7).Value < 0 Then  'OT A hrs showing -Ve
+        Cells(NegRow, 7).Font.ColorIndex = 3
+        NegHrs = "Red"
+    ElseIf Cells(NegRow, 8) < 0 Then    'OT B hrs showing -Ve
+        Cells(NegRow, 8).Font.ColorIndex = 3
+        NegHrs = "Red"
+    Else                                'Turn all 3 hrs to black if not -ve
+        Cells(NegRow, 6).Font.ColorIndex = 1
+        Cells(NegRow, 7).Font.ColorIndex = 1
+        Cells(NegRow, 8).Font.ColorIndex = 1
+    End If
+
+
+Next NegRow
+
+    If NegHrs = "Red" Then
+        MsgBox "Please check the ETA is not earlier than ETD timing for those hrs in red and re-run again.", vbExclamation
+        TerminateMacro = "Yes"
+    End If
+
+End Function
+
+Function Borders()
+
+    Application.CutCopyMode = False
+    Selection.Borders(xlDiagonalDown).LineStyle = xlNone
+    Selection.Borders(xlDiagonalUp).LineStyle = xlNone
+    With Selection.Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection.Borders(xlInsideHorizontal)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With Selection
+        .HorizontalAlignment = xlRight
+        .VerticalAlignment = xlCenter
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+    With Selection
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+
+End Function
+
+'Rd Up to X.X dec place for OT calculation at Timesheet
+Function RoundUp()
+
+Sheets("Timesheet").Select
+lastrow = xlLastRow("")
+
+If lastrow > 6 Then
+    Range("F6:H" & lastrow).Select
+    Selection.NumberFormat = "0.0"  'rdup using numbers not sciencetific to X.X format
+
+End If
+
+End Function
+
